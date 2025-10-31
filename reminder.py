@@ -20,7 +20,7 @@ interval = float(input())
 
 schedule.every(interval).minutes.do(send_reminder, message= f"It's time to {reminder_message}")
 
-print(f"Great! I will remind you to '{reminder_message}' every {interval} minutes.")
+print(f"Great! I will remind you to '{reminder_message}' every {interval} minutes. You can now minimize this window but DO NOT CLOSE IT")
 
 while True:
     schedule.run_pending()
