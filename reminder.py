@@ -3,68 +3,247 @@ import time
 import threading
 from plyer import notification
 import tkinter as tk
-from tkinter import simpledialog, messagebox
+from tkinter import ttk, simpledialog, messagebox
 import pystray
 from PIL import Image, ImageDraw
 import os
 
-def send_reminder(message):
-    notification.notify(
-        title="Reminder!",
-        message=message,
-        app_name="Python Reminder",
-        timeout=10
-    )
-    print(f"Reminder sent: '{message}'")
+# Store reminders so we can stop them
+active_reminders = []
 
-def open_tk_dialog():
+class ReminderApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Python Reminder")
+        self.root.geometry("500x400")
+        self.root.configure(bg='#f0f0f0')
+        
+        # Make window appear on top initially
+        self.root.attributes('-topmost', True)
+        self.root.after(1000, lambda: self.root.attributes('-topmost', False))
+        
+        self.setup_ui()
+        
+        # Start scheduler in background
+        self.scheduler_thread = threading.Thread(target=self.run_scheduler, daemon=True)
+        self.scheduler_thread.start()
+        
+        # Setup system tray (minimize to tray)
+        self.setup_tray()
+        
+        # Bind window close to minimize to tray
+        self.root.protocol('WM_DELETE_WINDOW', self.minimize_to_tray)
+
+    def setup_ui(self):
+        # Header
+        header_frame = tk.Frame(self.root, bg='#2c3e50', height=80)
+        header_frame.pack(fill='x', padx=10, pady=10)
+        header_frame.pack_propagate(False)
+        
+        tk.Label(header_frame, text="🔔 Python Reminder", font=("Arial", 16, "bold"), 
+                bg='#2c3e50', fg='white').pack(expand=True)
+        
+        tk.Label(header_frame, text="Never forget anything again!", font=("Arial", 10), 
+                bg='#2c3e50', fg='#bdc3c7').pack(expand=True)
+
+        # Quick Actions Frame
+        actions_frame = tk.Frame(self.root, bg='#f0f0f0')
+        actions_frame.pack(fill='x', padx=10, pady=10)
+        
+        tk.Button(actions_frame, text="➕ New Reminder", command=self.schedule_reminder,
+                 bg='#27ae60', fg='white', font=("Arial", 11, "bold"), height=2,
+                 width=15).pack(side='left', padx=5)
+        
+        tk.Button(actions_frame, text="⏹️ Stop All", command=self.stop_all_reminders,
+                 bg='#e74c3c', fg='white', font=("Arial", 11), height=2,
+                 width=12).pack(side='left', padx=5)
+        
+        tk.Button(actions_frame, text="🔄 Refresh", command=self.refresh_reminders,
+                 bg='#3498db', fg='white', font=("Arial", 11), height=2,
+                 width=10).pack(side='left', padx=5)
+
+        # Active Reminders Frame
+        reminders_frame = tk.LabelFrame(self.root, text="Active Reminders", font=("Arial", 12, "bold"),
+                                       bg='#f0f0f0', padx=10, pady=10)
+        reminders_frame.pack(fill='both', expand=True, padx=10, pady=10)
+
+        # Treeview for reminders
+        columns = ('message', 'interval', 'actions')
+        self.reminder_tree = ttk.Treeview(reminders_frame, columns=columns, show='headings', height=8)
+        
+        self.reminder_tree.heading('message', text='Reminder Message')
+        self.reminder_tree.heading('interval', text='Interval (min)')
+        self.reminder_tree.heading('actions', text='Actions')
+        
+        self.reminder_tree.column('message', width=300)
+        self.reminder_tree.column('interval', width=100)
+        self.reminder_tree.column('actions', width=100)
+        
+        self.reminder_tree.pack(fill='both', expand=True)
+
+        # Status bar
+        self.status_var = tk.StringVar()
+        self.status_var.set("Ready")
+        status_bar = tk.Label(self.root, textvariable=self.status_var, bg='#34495e', fg='white',
+                            font=("Arial", 9), anchor='w', padx=10)
+        status_bar.pack(fill='x', side='bottom')
+
+    def schedule_reminder(self):
+        """Open dialog to create new reminder"""
+        message = simpledialog.askstring("New Reminder", "What would you like to be reminded of?")
+        if not message:
+            return
+
+        interval = simpledialog.askfloat("New Reminder", "In how many minutes?")
+        if not interval:
+            return
+
+        # Create a unique ID for this reminder
+        job_id = f"reminder_{len(active_reminders)}"
+        job = schedule.every(interval).minutes.do(self.send_reminder, message=message, job_id=job_id)
+        
+        # Store reminder info
+        active_reminders.append({
+            'id': job_id,
+            'message': message,
+            'interval': interval,
+            'job': job
+        })
+        
+        messagebox.showinfo("Reminder Set", f"Reminding you to '{message}' every {interval} minutes.")
+        self.refresh_reminders()
+        self.status_var.set(f"Reminder added: '{message}' every {interval} minutes")
+
+    def send_reminder(self, message, job_id):
+        """Send notification and update status"""
+        try:
+            notification.notify(
+                title="Reminder!",
+                message=message,
+                app_name="Python Reminder",
+                timeout=10
+            )
+            self.status_var.set(f"Reminder sent: '{message}'")
+            print(f"Reminder sent: '{message}'")
+        except Exception as e:
+            # Fallback to messagebox if notification fails
+            root = tk.Tk()
+            root.withdraw()
+            messagebox.showinfo("Reminder!", message)
+            root.destroy()
+
+    def stop_all_reminders(self):
+        """Stop all active reminders"""
+        if not active_reminders:
+            messagebox.showinfo("Info", "No active reminders to stop!")
+            return
+            
+        schedule.clear()
+        active_reminders.clear()
+        self.refresh_reminders()
+        self.status_var.set("All reminders stopped!")
+        messagebox.showinfo("Success", "All reminders have been stopped!")
+
+    def stop_single_reminder(self, job_id):
+        """Stop a specific reminder"""
+        reminder_to_remove = None
+        for reminder in active_reminders:
+            if reminder['id'] == job_id:
+                reminder_to_remove = reminder
+                break
+        
+        if reminder_to_remove:
+            schedule.cancel_job(reminder_to_remove['job'])
+            active_reminders.remove(reminder_to_remove)
+            self.refresh_reminders()
+            self.status_var.set(f"Stopped reminder: '{reminder_to_remove['message']}'")
+
+    def refresh_reminders(self):
+        """Refresh the reminders list"""
+        # Clear existing items
+        for item in self.reminder_tree.get_children():
+            self.reminder_tree.delete(item)
+        
+        # Add current reminders
+        for reminder in active_reminders:
+            self.reminder_tree.insert('', 'end', values=(
+                reminder['message'],
+                reminder['interval'],
+                'Stop'
+            ), tags=(reminder['id'],))
+        
+        # Bind click event to stop buttons
+        self.reminder_tree.bind('<ButtonRelease-1>', self.on_tree_click)
+        
+        # Update status
+        count = len(active_reminders)
+        self.status_var.set(f"Active reminders: {count}")
+
+    def on_tree_click(self, event):
+        """Handle clicks on the treeview"""
+        item = self.reminder_tree.identify_row(event.y)
+        column = self.reminder_tree.identify_column(event.x)
+        
+        if item and column == '#3':  # Actions column
+            job_id = self.reminder_tree.item(item)['tags'][0]
+            self.stop_single_reminder(job_id)
+
+    def run_scheduler(self):
+        """Run the schedule checker in background"""
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
+
+    def create_image(self):
+        """Create system tray icon"""
+        img = Image.new('RGB', (64, 64), color=(44, 62, 80))
+        d = ImageDraw.Draw(img)
+        d.rectangle((16, 16, 48, 48), fill=(231, 76, 60))
+        d.ellipse((20, 20, 44, 44), fill=(255, 255, 255))
+        return img
+
+    def setup_tray(self):
+        """Setup system tray icon"""
+        image = self.create_image()
+        menu = pystray.Menu(
+            pystray.MenuItem("Show App", self.show_app),
+            pystray.MenuItem("New Reminder", self.schedule_reminder),
+            pystray.MenuItem("Stop All Reminders", self.stop_all_reminders),
+            pystray.MenuItem("Quit", self.quit_app)
+        )
+        self.tray_icon = pystray.Icon("Reminder", image, "Python Reminder", menu)
+        
+        # Start tray in background thread
+        tray_thread = threading.Thread(target=self.tray_icon.run, daemon=True)
+        tray_thread.start()
+
+    def show_app(self, icon=None, item=None):
+        """Show the main application window"""
+        self.root.after(0, self.restore_window)
+
+    def restore_window(self):
+        """Restore and focus the main window"""
+        self.root.deiconify()
+        self.root.lift()
+        self.root.focus_force()
+        self.root.attributes('-topmost', True)
+        self.root.after(1000, lambda: self.root.attributes('-topmost', False))
+
+    def minimize_to_tray(self):
+        """Minimize to system tray"""
+        self.root.withdraw()
+
+    def quit_app(self, icon=None, item=None):
+        """Quit the application completely"""
+        if self.tray_icon:
+            self.tray_icon.stop()
+        self.root.quit()
+        os._exit(0)
+
+def main():
     root = tk.Tk()
-    root.withdraw()
-
-    message = simpledialog.askstring("New Reminder", "What would you like to be reminded of?", parent=root)
-    if not message:
-        root.destroy()
-        return
-
-    interval = simpledialog.askfloat("New Reminder", "In how many minutes?", parent=root)
-    if not interval:
-        root.destroy()
-        return
-
-    schedule.every(interval).minutes.do(send_reminder, message=message)
-    messagebox.showinfo("Reminder Set", f"Reminding you to '{message}' every {interval} minutes.")
-    root.destroy()
-
-def schedule_reminder(icon=None, item=None):
-    # run Tkinter dialogs on the main thread
-    threading.Thread(target=open_tk_dialog).start()
-
-def create_image():
-    img = Image.new('RGB', (64, 64), color=(0, 128, 255))
-    d = ImageDraw.Draw(img)
-    d.rectangle((16, 16, 48, 48), fill=(255, 255, 255))
-    return img
-
-def run_scheduler():
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
-
-def on_quit(icon, item):
-    icon.stop()
-    os._exit(0)
-
-def setup_tray():
-    image = create_image()
-    menu = pystray.Menu(
-        pystray.MenuItem("New Reminder", schedule_reminder),
-        pystray.MenuItem("Quit", on_quit)
-    )
-    icon = pystray.Icon("Reminder", image, "Python Reminder", menu)
-    # Run the icon in a background thread
-    icon.run_detached()
-    # Run the scheduler on the main thread
-    run_scheduler()
+    app = ReminderApp(root)
+    root.mainloop()
 
 if __name__ == "__main__":
-    setup_tray()
+    main()
