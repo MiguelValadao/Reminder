@@ -21,42 +21,36 @@ A simple desktop application to set periodic reminders.
 ## Como usar // How to Use
 
 1. **Inicie a Aplicação**
-   - Clique duas vezes no arquivo `reminder.exe`.
+   - Clique duas vezes no arquivo `reminder.exe`. Um ícone da aplicação aparecerá na sua bandeja do sistema (geralmente no canto inferior direito do ecrã).
 
-2. **Defina o Lembrete**
-   - Uma janela de terminal será aberta e perguntará: `O que gostaria de ser lembrado?`
-   - Digite a mensagem do lembrete e pressione `Enter`.
+2. **Defina um Lembrete**
+   - Clique com o botão direito do rato no ícone da aplicação na bandeja do sistema.
+   - Selecione "New Reminder" no menu.
+   - Uma janela de diálogo irá pedir a sua mensagem de lembrete. Digite-a e clique em OK.
+   - Uma segunda janela de diálogo irá pedir o intervalo em minutos. Digite um número e clique em OK.
 
-3. **Defina o Tempo**
-   - A aplicação irá perguntar: `Em quantos minutos gostaria de ser lembrado?`
-   - Digite um número (por exemplo, `15` para 15 minutos) e pressione `Enter`.
-
-4. **Rode a aplicação em segundo plano**
-   - A aplicação confirmará que o lembrete foi definido. Ela vai rodar em segundo plano e te enviar notificações no intervalo que você escolheu.
-   - Você pode minimizar a janela do terminal, mas não feche-a.
+3. **Aguarde a Notificação**
+   - A aplicação confirmará que o lembrete foi definido. Ela continuará a ser executada em segundo plano e enviará uma notificação no ambiente de trabalho no intervalo que escolheu.
 
 ---
 
 1.  **Start the Application**
-    - Double-click on the `reminder.exe` file.
+    - Double-click on the `reminder.exe` file. An application icon will appear in your system tray (usually in the bottom-right corner of the screen).
 
-2.  **Set Your Reminder**
-    - A terminal window will open and ask you: `What would you like to be reminded of?`
-    - Type your reminder message and press `Enter`.
+2.  **Set a Reminder**
+    - Right-click the application icon in the system tray.
+    - Select "New Reminder" from the menu.
+    - A dialog box will ask for your reminder message. Type it and click OK.
+    - A second dialog box will ask for the interval in minutes. Type a number and click OK.
 
-3.  **Set the Time**
-    - The application will then ask: `In how many minutes would you like to be reminded?`
-    - Type a number (e.g., `15` for 15 minutes) and press `Enter`.
-
-4.  **Run in Background**
+3.  **Wait for the Notification**
     - The app will confirm that the reminder is set. It will now run in the background and send you a desktop notification at the interval you chose.
-    - You can minimize the terminal window, but do not close it.
 
 ## Como sair // How to Quit
-Para para saír da aplicação e cancelar todos os lembretes futuros, basta **fechar a janela do terminal**.
+Para para saír da aplicação e cancelar todos os lembretes futuros, clique com o botão direito do rato no ícone da bandeja do sistema e selecione **"Quit"**.
 
 ---
 
-To stop the application and cancel all future reminders, simply **close the terminal window**.
+To stop the application and cancel all future reminders, right-click the system tray icon and select **"Quit"**.
 
 **Aproveite** // **Enjoy**
